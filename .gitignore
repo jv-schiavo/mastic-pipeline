@@ -1,0 +1,11 @@
+# Word temporary files
+~$*.docx
+
+# SQL Server / local files
+*.bak
+*.mdf
+*.ldf
+
+# OS files
+.DS_Store
+Thumbs.db
