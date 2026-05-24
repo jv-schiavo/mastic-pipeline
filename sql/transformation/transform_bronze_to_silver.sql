@@ -57,12 +57,25 @@ Insert only new sites
 
 -- 3. Load employees
 
+INSERT INTO silver.employees (employee_name)
+SELECT DISTINCT
+    LTRIM(RTRIM(operative_name)) as employee_name
+FROM bronze.raw_jobs r
+WHERE operative_name IS NOT NULL
+AND NOT EXISTS (
+    SELECT 1
+    FROM silver.employees e
+    WHERE e.employee_name = LTRIM(RTRIM(r.operative_name))
+)
 
-
-
-
-
-
+/*
+Look at bronze.raw_jobs
+Find all operative names
+Clean spaces
+Remove duplicates
+Ignore NULLs
+Insert only new employees into silver.employees
+*/
 
 
 -- 4. Load materials
