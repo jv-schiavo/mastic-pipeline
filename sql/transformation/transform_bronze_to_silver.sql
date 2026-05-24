@@ -100,8 +100,6 @@ AND NOT EXISTS (
 
 -- 5. Load jobs
 
--- 5. Load jobs
-
 INSERT INTO silver.jobs (
     site_id,
     job_title,
@@ -135,18 +133,37 @@ AND NOT EXISTS (
 );
 
 
-
-
-
-
-
-
-
 -- 6. Load employee assignments
 
-
-
-
+INSERT INTO silver.employee_assignment (
+    employee_id,
+    job_id,
+    assignment_date
+)
+SELECT DISTINCT
+    e.employee_id,
+    j.job_id,
+    r.job_date
+FROM bronze.raw_jobs r
+JOIN silver.clients c
+    ON c.client_name = LTRIM(RTRIM(r.client_name))
+JOIN silver.sites s
+    ON s.client_id = c.client_id
+    AND s.location = LTRIM(RTRIM(r.location))
+JOIN silver.jobs j
+    ON j.site_id = s.site_id
+    AND j.start_date = r.job_date
+JOIN silver.employees e
+    ON e.employee_name = LTRIM(RTRIM(r.operative_name))
+WHERE r.operative_name IS NOT NULL
+AND r.location IS NOT NULL
+AND r.job_date IS NOT NULL
+AND NOT EXISTS (
+    SELECT 1
+    FROM silver.employee_assignment ea
+    WHERE ea.employee_id = e.employee_id
+    AND ea.job_id = j.job_id
+);
 
 -- 7. Load material usage 
 
