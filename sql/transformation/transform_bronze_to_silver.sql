@@ -2,7 +2,8 @@
 
 INSERT INTO silver.clients (client_name)
 SELECT DISTINCT
-    LTRIM(RTRIM(client_name)) AS client_name
+    LTRIM(RTRIM(client_name)) AS client_name,
+    NULL AS 
 FROM bronze.raw_jobs r
 WHERE client_name IS NOT NULL
 AND NOT EXISTS (
@@ -97,11 +98,43 @@ AND NOT EXISTS (
     AND m.material_manufacturer = LTRIM(RTRIM(r.manufacturer))
 );
 
-
-
-
+-- 5. Load jobs
 
 -- 5. Load jobs
+
+INSERT INTO silver.jobs (
+    site_id,
+    job_title,
+    job_description,
+    start_date,
+    end_date,
+    status
+)
+SELECT DISTINCT
+    s.site_id,
+    CONCAT('Mastic job - ', LTRIM(RTRIM(r.location)), ' - ', CONVERT(VARCHAR(10), r.job_date, 120)) AS job_title,
+    NULL AS job_description,
+    r.job_date AS start_date,
+    NULL AS end_date,
+    LTRIM(RTRIM(r.job_status)) AS status
+FROM bronze.raw_jobs r
+JOIN silver.clients c
+    ON c.client_name = LTRIM(RTRIM(r.client_name))
+JOIN silver.sites s
+    ON s.client_id = c.client_id
+    AND s.location = LTRIM(RTRIM(r.location))
+WHERE r.location IS NOT NULL
+AND r.job_date IS NOT NULL
+AND r.job_status IS NOT NULL
+AND NOT EXISTS (
+    SELECT 1
+    FROM silver.jobs j
+    WHERE j.site_id = s.site_id
+    AND j.start_date = r.job_date
+    AND j.status = LTRIM(RTRIM(r.job_status))
+);
+
+
 
 
 
