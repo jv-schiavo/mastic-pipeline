@@ -197,13 +197,40 @@ AND NOT EXISTS (
     AND mu.job_id = j.job_id
 )
 
-
-
-
-
-
 -- 8. Load work records
 
+INSERT INTO silver.work_records (
+    employee_id,
+    job_id,
+    days_worked,
+    work_date
+)
+SELECT DISTINCT
+    e.employee_id,
+    j.job_id,
+    r.days_worked,
+    r.job_date AS work_date
+FROM bronze.raw_jobs r
+JOIN silver.clients c
+    ON c.client_name = LTRIM(RTRIM(r.client_name))
+JOIN silver.sites s
+    ON s.client_id = c.client_id
+    AND s.location = LTRIM(RTRIM(r.location))
+JOIN silver.jobs j
+    ON j.site_id = s.site_id
+    AND j.start_date = r.job_date
+JOIN silver.employees e
+    ON e.employee_name = LTRIM(RTRIM(r.operative_name))
+WHERE r.operative_name IS NOT NULL
+AND r.days_worked IS NOT NULL
+AND r.job_date IS NOT NULL
+AND NOT EXISTS (
+    SELECT 1
+    FROM silver.work_records wr
+    WHERE wr.employee_id = e.employee_id
+    AND wr.job_id = j.job_id
+    AND wr.work_date = r.job_date
+);
 
 
 -- 9. Load invoices
