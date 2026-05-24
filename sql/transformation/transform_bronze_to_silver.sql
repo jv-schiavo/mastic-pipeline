@@ -235,7 +235,32 @@ AND NOT EXISTS (
 
 -- 9. Load invoices
 
-
+INSERT INTO silver.invoices (
+    client_id,
+    invoice_date,
+    total_amount,
+    status
+)
+SELECT DISTINCT
+    c.client_id,
+    r.job_date AS invoice_date,
+    r.amount_charged AS total_amount,
+    CASE
+        WHEN r.job_status = 'completed' THEN 'sent'
+        ELSE 'draft'
+    END AS status
+FROM bronze.raw_jobs r
+JOIN silver.clients c
+    ON c.client_name = LTRIM(RTRIM(r.client_name))
+WHERE r.amount_charged IS NOT NULL
+AND r.job_date IS NOT NULL
+AND NOT EXISTS (
+    SELECT 1
+    FROM silver.invoices i
+    WHERE i.client_id = c.client_id
+    AND i.invoice_date = r.job_date
+    AND i.total_amount = r.amount_charged
+);
 
 
 -- 10. Load invoice jobs
