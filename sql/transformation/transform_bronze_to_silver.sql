@@ -296,3 +296,32 @@ AND NOT EXISTS (
 
 
 -- 11. Load payments
+
+INSERT INTO silver.payments (
+    invoice_id,
+    payment_date,
+    amount,
+    method,
+    reference
+)
+SELECT DISTINCT
+    i.invoice_id,
+    r.job_date AS payment_date,
+    r.amount_charged AS amount,
+    'bank transfer' AS method,
+    NULL AS reference
+FROM bronze.raw_jobs r
+JOIN silver.clients c
+    ON c.client_name = LTRIM(RTRIM(r.client_name))
+JOIN silver.invoices i
+    ON i.client_id = c.client_id
+    AND i.invoice_date = r.job_date
+    AND i.total_amount = r.amount_charged
+WHERE r.job_status = 'completed'
+AND r.amount_charged IS NOT NULL
+AND NOT EXISTS (
+    SELECT 1
+    FROM silver.payments p
+    WHERE p.invoice_id = i.invoice_id
+    AND p.amount = r.amount_charged
+);
