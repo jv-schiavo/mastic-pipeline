@@ -166,6 +166,38 @@ AND NOT EXISTS (
 );
 
 -- 7. Load material usage 
+INSERT INTO silver.material_usage (
+    material_id,
+    job_id,
+    quantity,
+    unit_cost_at_time
+)
+SELECT DISTINCT
+    m.material_id,
+    j.job_id,
+    r.quantity_used AS quantity,
+    NULL as unit_cost_at_time
+FROM bronze.raw_jobs r
+JOIN silver.clients c
+    ON c.client_name = LTRIM(RTRIM(r.client_name))
+JOIN silver.sites s
+    ON LTRIM(RTRIM(r.location)) = s.location
+JOIN silver.jobs j
+    ON j.site_id = s.site_id
+JOIN silver.materials m
+    ON LTRIM(RTRIM(r.material_name)) = m.material_name
+    AND LTRIM(RTRIM(r.manufacturer)) = m.material_manufacturer
+WHERE r.material_name IS NOT NULL
+AND r.manufacturer IS NOT NULL
+AND r.quantity_used IS NOT NULL
+AND NOT EXISTS (
+    SELECT 1
+    FROM silver.material_usage mu
+    WHERE mu.material_id = m.material_id
+    AND mu.job_id = j.job_id
+)
+
+
 
 
 
