@@ -262,9 +262,37 @@ AND NOT EXISTS (
     AND i.total_amount = r.amount_charged
 );
 
-
 -- 10. Load invoice jobs
 
+INSERT INTO silver.invoice_jobs (
+    invoice_id,
+    job_id,
+    amount
+)
+SELECT DISTINCT
+    i.invoice_id,
+    j.job_id,
+    r.amount_charged AS amount
+FROM bronze.raw_jobs r
+JOIN silver.clients c
+    ON c.client_name = LTRIM(RTRIM(r.client_name))
+JOIN silver.sites s
+    ON s.client_id = c.client_id
+    AND s.location = LTRIM(RTRIM(r.location))
+JOIN silver.jobs j
+    ON j.site_id = s.site_id
+    AND j.start_date = r.job_date
+JOIN silver.invoices i
+    ON i.client_id = c.client_id
+    AND i.invoice_date = r.job_date
+    AND i.total_amount = r.amount_charged
+WHERE r.amount_charged IS NOT NULL
+AND NOT EXISTS (
+    SELECT 1
+    FROM silver.invoice_jobs ij
+    WHERE ij.invoice_id = i.invoice_id
+    AND ij.job_id = j.job_id
+);
 
 
 -- 11. Load payments
