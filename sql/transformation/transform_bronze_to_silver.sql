@@ -80,6 +80,24 @@ Insert only new employees into silver.employees
 
 -- 4. Load materials
 
+INSERT INTO silver.materials (
+    material_name,
+    material_manufacturer
+)
+SELECT DISTINCT
+    LTRIM(RTRIM(material_name)) AS material_name,
+    LTRIM(RTRIM(manufacturer)) AS material_manufacturer
+FROM bronze.raw_jobs r
+WHERE r.material_name IS NOT NULL
+AND r.manufacturer IS NOT NULL
+AND NOT EXISTS (
+    SELECT 1
+    FROM silver.materials m
+    WHERE m.material_name = LTRIM(RTRIM(r.material_name))
+    AND m.material_manufacturer = LTRIM(RTRIM(r.manufacturer))
+);
+
+
 
 
 
