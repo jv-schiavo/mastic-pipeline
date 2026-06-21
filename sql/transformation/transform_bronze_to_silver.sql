@@ -1,9 +1,15 @@
 -- 1. Load clients
-
-INSERT INTO silver.clients (client_name)
+INSERT INTO silver.clients (
+    client_name,
+    email,
+    address,
+    phone
+)
 SELECT DISTINCT
-    LTRIM(RTRIM(client_name)) AS client_name,
-    NULL AS 
+    LTRIM(RTRIM(client_name)),
+    LTRIM(RTRIM(client_email)),
+    LTRIM(RTRIM(client_address)),
+    LTRIM(RTRIM(client_phone))
 FROM bronze.raw_jobs r
 WHERE client_name IS NOT NULL
 AND NOT EXISTS (
@@ -14,7 +20,7 @@ AND NOT EXISTS (
 
 /*
 Look at bronze.raw_jobs
-Find all client names
+Find all client names, emails, address and phone
 Clean spaces
 Remove duplicates
 Ignore NULLs
@@ -30,17 +36,17 @@ INSERT INTO silver.sites (
 )
 SELECT DISTINCT
     c.client_id,
-    LTRIM(RTRIM(location)) as location,
-    'active' AS status
+    LTRIM(RTRIM(r.site_location)),
+    LTRIM(RTRIM(r.site_status))
 FROM bronze.raw_jobs r
 JOIN silver.clients c
 ON c.client_name = LTRIM(RTRIM(r.client_name))
-WHERE r.location IS NOT NULL
+WHERE r.site_location IS NOT NULL
 AND NOT EXISTS (
     SELECT 1
     FROM silver.sites s
     WHERE s.client_id = c.client_id
-    AND s.site_name = LTRIM(RTRIM(r.location))
+     AND s.location = LTRIM(RTRIM(r.site_location))
 );
 
 /*
@@ -55,54 +61,10 @@ Ignore NULLS
 Insert only new sites
 */
 
-
--- 3. Load employees
-
-INSERT INTO silver.employees (employee_name)
-SELECT DISTINCT
-    LTRIM(RTRIM(operative_name)) as employee_name
-FROM bronze.raw_jobs r
-WHERE operative_name IS NOT NULL
-AND NOT EXISTS (
-    SELECT 1
-    FROM silver.employees e
-    WHERE e.employee_name = LTRIM(RTRIM(r.operative_name))
-)
-
-/*
-Look at bronze.raw_jobs
-Find all operative names
-Clean spaces
-Remove duplicates
-Ignore NULLs
-Insert only new employees into silver.employees
-*/
-
-
--- 4. Load materials
-
-INSERT INTO silver.materials (
-    material_name,
-    material_manufacturer
-)
-SELECT DISTINCT
-    LTRIM(RTRIM(material_name)) AS material_name,
-    LTRIM(RTRIM(manufacturer)) AS material_manufacturer
-FROM bronze.raw_jobs r
-WHERE r.material_name IS NOT NULL
-AND r.manufacturer IS NOT NULL
-AND NOT EXISTS (
-    SELECT 1
-    FROM silver.materials m
-    WHERE m.material_name = LTRIM(RTRIM(r.material_name))
-    AND m.material_manufacturer = LTRIM(RTRIM(r.manufacturer))
-);
-
--- 5. Load jobs
+-- 3. Load jobs
 
 INSERT INTO silver.jobs (
     site_id,
-    job_title,
     job_description,
     start_date,
     end_date,
@@ -110,62 +72,106 @@ INSERT INTO silver.jobs (
 )
 SELECT DISTINCT
     s.site_id,
-    CONCAT('Mastic job - ', LTRIM(RTRIM(r.location)), ' - ', CONVERT(VARCHAR(10), r.job_date, 120)) AS job_title,
-    NULL AS job_description,
-    r.job_date AS start_date,
-    NULL AS end_date,
-    LTRIM(RTRIM(r.job_status)) AS status
+    LTRIM(RTRIM(r.job_description)),
+    r.start_date,
+    r.end_date,
+    LTRIM(RTRIM(r.job_status))
 FROM bronze.raw_jobs r
 JOIN silver.clients c
     ON c.client_name = LTRIM(RTRIM(r.client_name))
 JOIN silver.sites s
     ON s.client_id = c.client_id
-    AND s.location = LTRIM(RTRIM(r.location))
-WHERE r.location IS NOT NULL
-AND r.job_date IS NOT NULL
-AND r.job_status IS NOT NULL
+    AND s.location = LTRIM(RTRIM(r.site_location))
+WHERE r.job_description IS NOT NULL
 AND NOT EXISTS (
     SELECT 1
     FROM silver.jobs j
     WHERE j.site_id = s.site_id
-    AND j.start_date = r.job_date
-    AND j.status = LTRIM(RTRIM(r.job_status))
+    AND j.job_description = LTRIM(RTRIM(r.job_description))
+    AND j.start_date = r.start_date
 );
 
 
--- 6. Load employee assignments
-
-INSERT INTO silver.employee_assignment (
-    employee_id,
-    job_id,
-    assignment_date
+-- 4. Load employees
+INSERT INTO silver.employees (
+    worker_name,
+    email,
+    phone,
+    dob
 )
 SELECT DISTINCT
-    e.employee_id,
-    j.job_id,
-    r.job_date
+    LTRIM(RTRIM(r.worker_name)),
+    LTRIM(RTRIM(r.worker_email)),
+    LTRIM(RTRIM(r.worker_phone)),
+    r.worker_dob
 FROM bronze.raw_jobs r
+WHERE r.worker_name IS NOT NULL
+AND NOT EXISTS (
+    SELECT 1
+    FROM silver.employees e
+    WHERE e.worker_name = LTRIM(RTRIM(r.worker_name))
+);
+
+
+-- 5. Load work log
+INSERT INTO silver.work_log (
+    worker_id,
+    job_id,
+    work_date,
+    notes
+)
+SELECT DISTINCT
+    e.worker_id,
+    j.job_id,
+    r.work_date,
+    LTRIM(RTRIM(r.work_notes))
+FROM bronze.raw_jobs r
+JOIN silver.employees e
+    ON e.worker_name = LTRIM(RTRIM(r.worker_name))
 JOIN silver.clients c
     ON c.client_name = LTRIM(RTRIM(r.client_name))
 JOIN silver.sites s
     ON s.client_id = c.client_id
-    AND s.location = LTRIM(RTRIM(r.location))
+    AND s.location = LTRIM(RTRIM(r.site_location))
 JOIN silver.jobs j
     ON j.site_id = s.site_id
-    AND j.start_date = r.job_date
-JOIN silver.employees e
-    ON e.employee_name = LTRIM(RTRIM(r.operative_name))
-WHERE r.operative_name IS NOT NULL
-AND r.location IS NOT NULL
-AND r.job_date IS NOT NULL
+    AND j.job_description = LTRIM(RTRIM(r.job_description))
+    AND j.start_date = r.start_date
+WHERE r.worker_name IS NOT NULL
+AND r.work_date IS NOT NULL
+AND r.job_description IS NOT NULL
 AND NOT EXISTS (
     SELECT 1
-    FROM silver.employee_assignment ea
-    WHERE ea.employee_id = e.employee_id
-    AND ea.job_id = j.job_id
+    FROM silver.work_log wl
+    WHERE wl.worker_id = e.worker_id
+    AND wl.job_id = j.job_id
+    AND wl.work_date = r.work_date
 );
 
--- 7. Load material usage 
+
+
+-- 6. Load materials
+INSERT INTO silver.materials (
+    material_name,
+    material_manufacturer,
+    unit,
+    unit_cost
+)
+SELECT DISTINCT
+    LTRIM(RTRIM(r.material_name)),
+    LTRIM(RTRIM(r.material_manufacturer)),
+    LTRIM(RTRIM(r.material_unit)),
+    r.material_unit_cost
+FROM bronze.raw_jobs r
+WHERE r.material_name IS NOT NULL
+AND NOT EXISTS (
+    SELECT 1
+    FROM silver.materials m
+    WHERE m.material_name = LTRIM(RTRIM(r.material_name))
+    AND ISNULL(m.material_manufacturer, '') = ISNULL(LTRIM(RTRIM(r.material_manufacturer)), '')
+);
+
+-- 7. Load material usage
 INSERT INTO silver.material_usage (
     material_id,
     job_id,
@@ -175,66 +181,33 @@ INSERT INTO silver.material_usage (
 SELECT DISTINCT
     m.material_id,
     j.job_id,
-    r.quantity_used AS quantity,
-    NULL as unit_cost_at_time
+    r.quantity_used,
+    r.unit_cost_at_time
 FROM bronze.raw_jobs r
+JOIN silver.materials m
+    ON m.material_name = LTRIM(RTRIM(r.material_name))
+    AND ISNULL(m.material_manufacturer, '') = ISNULL(LTRIM(RTRIM(r.material_manufacturer)), '')
 JOIN silver.clients c
     ON c.client_name = LTRIM(RTRIM(r.client_name))
 JOIN silver.sites s
-    ON LTRIM(RTRIM(r.location)) = s.location
+    ON s.client_id = c.client_id
+    AND s.location = LTRIM(RTRIM(r.site_location))
 JOIN silver.jobs j
     ON j.site_id = s.site_id
-JOIN silver.materials m
-    ON LTRIM(RTRIM(r.material_name)) = m.material_name
-    AND LTRIM(RTRIM(r.manufacturer)) = m.material_manufacturer
+    AND j.job_description = LTRIM(RTRIM(r.job_description))
+    AND j.start_date = r.start_date
 WHERE r.material_name IS NOT NULL
-AND r.manufacturer IS NOT NULL
 AND r.quantity_used IS NOT NULL
+AND r.job_description IS NOT NULL
 AND NOT EXISTS (
     SELECT 1
     FROM silver.material_usage mu
     WHERE mu.material_id = m.material_id
     AND mu.job_id = j.job_id
-)
-
--- 8. Load work records
-
-INSERT INTO silver.work_records (
-    employee_id,
-    job_id,
-    days_worked,
-    work_date
-)
-SELECT DISTINCT
-    e.employee_id,
-    j.job_id,
-    r.days_worked,
-    r.job_date AS work_date
-FROM bronze.raw_jobs r
-JOIN silver.clients c
-    ON c.client_name = LTRIM(RTRIM(r.client_name))
-JOIN silver.sites s
-    ON s.client_id = c.client_id
-    AND s.location = LTRIM(RTRIM(r.location))
-JOIN silver.jobs j
-    ON j.site_id = s.site_id
-    AND j.start_date = r.job_date
-JOIN silver.employees e
-    ON e.employee_name = LTRIM(RTRIM(r.operative_name))
-WHERE r.operative_name IS NOT NULL
-AND r.days_worked IS NOT NULL
-AND r.job_date IS NOT NULL
-AND NOT EXISTS (
-    SELECT 1
-    FROM silver.work_records wr
-    WHERE wr.employee_id = e.employee_id
-    AND wr.job_id = j.job_id
-    AND wr.work_date = r.job_date
 );
 
 
--- 9. Load invoices
-
+-- 8. Load invoices
 INSERT INTO silver.invoices (
     client_id,
     invoice_date,
@@ -243,27 +216,22 @@ INSERT INTO silver.invoices (
 )
 SELECT DISTINCT
     c.client_id,
-    r.job_date AS invoice_date,
-    r.amount_charged AS total_amount,
-    CASE
-        WHEN r.job_status = 'completed' THEN 'sent'
-        ELSE 'draft'
-    END AS status
+    r.invoice_date,
+    r.invoice_total_amount,
+    LTRIM(RTRIM(r.invoice_status))
 FROM bronze.raw_jobs r
 JOIN silver.clients c
     ON c.client_name = LTRIM(RTRIM(r.client_name))
-WHERE r.amount_charged IS NOT NULL
-AND r.job_date IS NOT NULL
+WHERE r.invoice_date IS NOT NULL
 AND NOT EXISTS (
     SELECT 1
     FROM silver.invoices i
     WHERE i.client_id = c.client_id
-    AND i.invoice_date = r.job_date
-    AND i.total_amount = r.amount_charged
+    AND i.invoice_date = r.invoice_date
+    AND ISNULL(i.total_amount, 0) = ISNULL(r.invoice_total_amount, 0)
 );
 
--- 10. Load invoice jobs
-
+-- 9. Load invoice jobs
 INSERT INTO silver.invoice_jobs (
     invoice_id,
     job_id,
@@ -272,21 +240,22 @@ INSERT INTO silver.invoice_jobs (
 SELECT DISTINCT
     i.invoice_id,
     j.job_id,
-    r.amount_charged AS amount
+    r.invoice_job_amount
 FROM bronze.raw_jobs r
 JOIN silver.clients c
     ON c.client_name = LTRIM(RTRIM(r.client_name))
-JOIN silver.sites s
-    ON s.client_id = c.client_id
-    AND s.location = LTRIM(RTRIM(r.location))
-JOIN silver.jobs j
-    ON j.site_id = s.site_id
-    AND j.start_date = r.job_date
 JOIN silver.invoices i
     ON i.client_id = c.client_id
-    AND i.invoice_date = r.job_date
-    AND i.total_amount = r.amount_charged
-WHERE r.amount_charged IS NOT NULL
+    AND i.invoice_date = r.invoice_date
+JOIN silver.sites s
+    ON s.client_id = c.client_id
+    AND s.location = LTRIM(RTRIM(r.site_location))
+JOIN silver.jobs j
+    ON j.site_id = s.site_id
+    AND j.job_description = LTRIM(RTRIM(r.job_description))
+    AND j.start_date = r.start_date
+WHERE r.invoice_date IS NOT NULL
+AND r.job_description IS NOT NULL
 AND NOT EXISTS (
     SELECT 1
     FROM silver.invoice_jobs ij
@@ -294,9 +263,7 @@ AND NOT EXISTS (
     AND ij.job_id = j.job_id
 );
 
-
--- 11. Load payments
-
+-- 10. Load payments
 INSERT INTO silver.payments (
     invoice_id,
     payment_date,
@@ -306,22 +273,20 @@ INSERT INTO silver.payments (
 )
 SELECT DISTINCT
     i.invoice_id,
-    r.job_date AS payment_date,
-    r.amount_charged AS amount,
-    'bank transfer' AS method,
-    NULL AS reference
+    r.payment_date,
+    r.payment_amount,
+    LTRIM(RTRIM(r.payment_method)),
+    LTRIM(RTRIM(r.payment_reference))
 FROM bronze.raw_jobs r
 JOIN silver.clients c
     ON c.client_name = LTRIM(RTRIM(r.client_name))
 JOIN silver.invoices i
     ON i.client_id = c.client_id
-    AND i.invoice_date = r.job_date
-    AND i.total_amount = r.amount_charged
-WHERE r.job_status = 'completed'
-AND r.amount_charged IS NOT NULL
+    AND i.invoice_date = r.invoice_date
+WHERE r.payment_amount IS NOT NULL
 AND NOT EXISTS (
     SELECT 1
     FROM silver.payments p
     WHERE p.invoice_id = i.invoice_id
-    AND p.amount = r.amount_charged
+    AND ISNULL(p.reference, '') = ISNULL(LTRIM(RTRIM(r.payment_reference)), '')
 );
