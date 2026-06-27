@@ -9,7 +9,10 @@ BEGIN
         worker_name VARCHAR(100) NOT NULL,
         email VARCHAR(100),
         phone VARCHAR(50),
-        dob DATE
+        dob DATE,
+
+        CONSTRAINT PK_dim_employees
+        PRIMARY KEY (employee_key)
 );
 
 END;

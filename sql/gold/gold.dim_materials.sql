@@ -9,6 +9,9 @@ BEGIN
         material_name VARCHAR(100) NOT NULL,
         material_manufacturer VARCHAR(100),
         unit VARCHAR(50),
-        unit_cost DECIMAL(10,2)
+        unit_cost DECIMAL(10,2),
+
+        CONSTRAINT PK_dim_materials
+        PRIMARY KEY (material_key)
 );
 END;
