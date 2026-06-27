@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS silver.payments;
+DROP TABLE IF EXISTS silver.invoice_jobs;
+DROP TABLE IF EXISTS silver.invoices;
+DROP TABLE IF EXISTS silver.material_usage;
+DROP TABLE IF EXISTS silver.work_records;
+DROP TABLE IF EXISTS silver.employee_assignment;
+DROP TABLE IF EXISTS silver.jobs;
+DROP TABLE IF EXISTS silver.materials;
+DROP TABLE IF EXISTS silver.employees;
+DROP TABLE IF EXISTS silver.sites;
+DROP TABLE IF EXISTS silver.clients;
