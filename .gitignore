@@ -9,3 +9,10 @@
 # OS files
 .DS_Store
 Thumbs.db
+
+# Env file
+python/.env
+.env
+
+# Virtual Enviroment 
+.venv
